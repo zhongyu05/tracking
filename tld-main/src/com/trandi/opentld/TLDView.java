@@ -70,12 +70,78 @@ public class TLDView extends JavaCameraView implements CameraBridgeViewBase.CvCa
 	private Mat _finalgray = new Mat();
 	private Tld _tld = null;
 	private Rect _trackedBox = null;
+	private Rect _mainBox = null;
 	private ProcessFrameStruct _processFrameStruct = null;
 	private Properties _tldProperties;
 	
 	private static final Size WORKING_FRAME_SIZE = new Size(144, 80);
 	private Mat _workingFrame = new Mat();
 	private String _errMessage;
+	
+	private Boolean viewReady = false;
+	private Size _frameSize;
+	
+	public interface ViewUpdateEventListener {
+	    public void onViewUpdated();
+	}
+	
+	public Boolean isTracked(){
+		return _tld.isTracked;
+	}
+	
+	public Size getFrameSize(){
+		return _frameSize;
+	}
+	
+	public Boolean getViewReady(){
+		return viewReady;
+	}
+	
+	public Rect getMainBox(){
+		return _mainBox;
+	}
+	
+	public Rect getTrackedBox(){
+		//if (_processFrameStruct == null) {
+		//	return null;
+		//}
+		return _trackedBox;
+	}
+	
+	public void setMainBox(android.graphics.Rect androidRect){
+		Point p1 = new Point(androidRect.left, androidRect.top);
+		Point p2 = new Point(androidRect.right, androidRect.bottom);
+		_mainBox = new Rect(p1, p2);
+		
+	}
+	
+	
+	
+	public Boolean isMainBoxClose(){
+		//return true;
+		 
+		if (getTrackedBox() == null || _mainBox == null) {
+			return false;
+		}
+		double centerDist = Math.pow(_mainBox.x + _mainBox.width/2 - getTrackedBox().x - getTrackedBox().width/2, 2)
+		+ Math.pow(_mainBox.y + _mainBox.height/2 - getTrackedBox().y - getTrackedBox().height/2, 2);
+		if(centerDist > 4900) {
+			return false;
+		}
+		double mainSize = Math.sqrt( Math.pow(_mainBox.height, 2) + Math.pow(_mainBox.height, 2) );
+		double trackSize = Math.sqrt( Math.pow(getTrackedBox().height, 2) + Math.pow(getTrackedBox().height, 2) );
+		if (Math.abs(mainSize - trackSize)/mainSize > 0.14) {
+			return false;
+		}
+
+		return true;
+	}
+	
+	private ViewUpdateEventListener mEventListener;
+	
+	public void setEventListener(ViewUpdateEventListener mEventListener) {
+	    this.mEventListener = mEventListener;
+	}
 	
 	public TLDView(Context context, AttributeSet attrs) {
 		super(context, attrs);
@@ -116,10 +182,11 @@ public class TLDView extends JavaCameraView implements CameraBridgeViewBase.CvCa
 		rectPaint.setStrokeWidth(5);
 		rectPaint.setStyle(Style.STROKE);
 		
-		setOnTouchListener(new OnTouchListener() {
+		/*setOnTouchListener(new OnTouchListener() {
 			@Override
 			public boolean onTouch(View v, MotionEvent event) {
 				// re-init
+				
 				_errMessage = null;
 				//_tld = null;
 				
@@ -163,13 +230,17 @@ public class TLDView extends JavaCameraView implements CameraBridgeViewBase.CvCa
 				return true;
 			}
 		});
+	*/	
 	}
 
 	@Override
 	public Mat onCameraFrame(Mat originalFrame) {
+		viewReady = true;
+		_frameSize = originalFrame.size();
+
 		if (!frameSelected) {
 			//_frozeFrame = originalFrame;
-			originalFrame.copyTo(_frozeFrame);
+			//originalFrame.copyTo(_frozeFrame);
 			//Imgproc.resize(_readImg, _frozeFrame, originalFrame.size());
 			//Imgproc.cvtColor(_frozeFrame, _frozeFrame, Imgproc.COLOR_BGR2RGB);
 		} /*else if(!fileWritten) {
@@ -185,11 +256,11 @@ public class TLDView extends JavaCameraView implements CameraBridgeViewBase.CvCa
 		}*/
 		try{
 			// Image is too big and this requires too much CPU for a phone, so scale everything down...			
-			if (frameSelected && !bbgot) {
-				Imgproc.resize(_frozeFrame, _workingFrame, WORKING_FRAME_SIZE);
-			} else {
+			//if (frameSelected && !bbgot) {
+				//Imgproc.resize(_frozeFrame, _workingFrame, WORKING_FRAME_SIZE);
+			//} else {
 				Imgproc.resize(originalFrame, _workingFrame, WORKING_FRAME_SIZE);
-			}
+			//}
 			final Size workingRatio = new Size(originalFrame.width() / WORKING_FRAME_SIZE.width, originalFrame.height() / WORKING_FRAME_SIZE.height);
 			// usefull to see what we're actually working with...
 			/*if (frameSelected && _trackedBox == null) {
@@ -198,6 +269,11 @@ public class TLDView extends JavaCameraView implements CameraBridgeViewBase.CvCa
 				//_workingFrame.copyTo(originalFrame.submat(originalFrame.rows() - _workingFrame.rows(), originalFrame.rows(), 0, _workingFrame.cols()));
 				_finalgray.copyTo(originalFrame.submat(originalFrame.rows() - _finalgray.rows(), originalFrame.rows(), 0, _finalgray.cols()));
 			}*/
+			if (_trackedBox == null && _mainBox != null) {
+				Log.v(VIEW_LOG_TAG, "init!!!");
+				_trackedBox = new Rect(_mainBox.x, _mainBox.y, _mainBox.width, _mainBox.height);
+			}
+			
 			if(_trackedBox != null){
 				if(_tld == null){ // run the 1st time only
 					Imgproc.cvtColor(_workingFrame, _lastGray, Imgproc.COLOR_RGB2GRAY);
@@ -222,29 +298,37 @@ public class TLDView extends JavaCameraView implements CameraBridgeViewBase.CvCa
 					drawPoints(originalFrame, _processFrameStruct.lastPoints, workingRatio, new Scalar(255, 0, 0));
 					drawPoints(originalFrame, _processFrameStruct.currentPoints, workingRatio, new Scalar(0, 255, 0));
 					drawBox(originalFrame, scaleUp(_processFrameStruct.currentBBox, workingRatio), new Scalar(0, 0, 255));
+					_mainBox = scaleUp(_processFrameStruct.currentBBox, workingRatio);
 						
 					_currentGray.copyTo(_lastGray);
 					
 					// overlay the current positive examples on the real image(needs converting at the same time !)
 					//copyTo(_tld.getPPatterns(), originalFrame);
 				}
-				Log.i(Util.TAG, "Box size"+_trackedBox.size());
+				//Log.i(Util.TAG, "Box size"+_mainBox.size());
 			}
 		} catch(Exception e) {
 	        _errMessage = e.getClass().getSimpleName() + " / " + e.getMessage();
 	        Log.e(Util.TAG, "TLDView PROBLEM", e);
+		    if (mEventListener != null) {
+		        mEventListener.onViewUpdated();
+		    }
 		}
 
 		
 		if(_errMessage !=  null){
 			Core.putText(originalFrame, _errMessage, new Point(0, 300), Core.FONT_HERSHEY_PLAIN, 1.3d, new Scalar(255, 0, 0), 2);
 		}
-		if(frameSelected && !bbgot){
+		/*if(frameSelected && !bbgot){
 			return _frozeFrame;
 		}
 		else {
 			return originalFrame;
-		}
+		}*/
+	    if (mEventListener != null) {
+	        mEventListener.onViewUpdated();
+	    }  
+		return originalFrame;
 	}
 
 	private static void copyTo(List<Mat> patterns, Mat dest) {

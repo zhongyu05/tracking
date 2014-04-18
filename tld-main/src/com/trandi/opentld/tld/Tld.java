@@ -55,6 +55,7 @@ public class Tld {
 	private final LKTracker _tracker = new LKTracker();
 	private PatchGenerator _patchGenerator; // FIXME UNUSED, why !?
 	private final RNG _rng = new DefaultRNG();
+	public Boolean isTracked = false;
 	
 	
 	// Integral Images
@@ -192,7 +193,7 @@ public class Tld {
 			}else{
 				Log.i(Util.TAG, "Tracking confidence: " + trackingStruct.conf + " < " + " Threshold: " + _classifierNN.getNNThresholdValid() + " ===> WILL NOT LEARN");
 			}
-			
+			isTracked = true;
 			Log.i(Util.TAG, "Tracked");
 			if(detStructs != null){
 				final Map<BoundingBox, Float> clusters = clusterConfidentIndices(detStructs.second);// cluster detections
@@ -234,6 +235,7 @@ public class Tld {
 				}
 			}
 		}else{ // IF NOT Tracking
+			isTracked = false;
 			Log.w(Util.TAG, "NOT Tracking");
 			_lastbox = null;
 			_learn = false;
