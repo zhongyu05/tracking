@@ -9,6 +9,7 @@
 	<com.trandi.opentld.TLDView
 		android:layout_width="fill_parent"
 		android:layout_height="fill_parent"
+		android:contentDescription="background"
 		android:visibility="gone"
 		android:id="@+id/tld_view"
 		opencv:show_fps="true"

@@ -59,14 +59,15 @@ public class TLDView extends JavaCameraView implements CameraBridgeViewBase.CvCa
     private int _canvasImgYOffset;
     private int _canvasImgXOffset;
     
-    private Boolean frameSelected = false;
-    private Boolean bbgot = false;
+    public Boolean frameSelected = false;
+    public Boolean bbgot = false;
+    public Boolean jsonBoxReady = false;
     private Boolean fileWritten = false;
 	
 	private Mat _currentGray = new Mat();
 	private Mat _readImg = new Mat();
 	private Mat _lastGray = new Mat();
-	private Mat _frozeFrame = new Mat();
+	public Mat _frozeFrame = new Mat();
 	private Mat _finalgray = new Mat();
 	private Tld _tld = null;
 	private Rect _trackedBox = null;
@@ -100,6 +101,13 @@ public class TLDView extends JavaCameraView implements CameraBridgeViewBase.CvCa
 	public Rect getMainBox(){
 		return _mainBox;
 	}
+	
+    public void setResolution(int w, int h) {
+        disconnectCamera();
+        mMaxHeight = h;
+        mMaxWidth = w;
+        connectCamera(getWidth(), getHeight());
+    }
 	
 	public Rect getTrackedBox(){
 		//if (_processFrameStruct == null) {
@@ -166,7 +174,7 @@ public class TLDView extends JavaCameraView implements CameraBridgeViewBase.CvCa
 		}
 		
 		//File testImage = new File("/storage/sdcard0/DCIM/Camera/)
-		_readImg = Highgui.imread("/storage/sdcard0/DCIM/Camera/IMG_20140322_183024.jpg");
+		//_readImg = Highgui.imread("/storage/sdcard0/DCIM/Camera/IMG_20140322_183024.jpg");
 		//Toast.makeText(context, "Height: " + _frozeFrame.height() + " Width: " + _frozeFrame.width(), Toast.LENGTH_LONG).show();
 		// listens to its own events
 		setCvCameraViewListener(this);
@@ -240,7 +248,7 @@ public class TLDView extends JavaCameraView implements CameraBridgeViewBase.CvCa
 
 		if (!frameSelected) {
 			//_frozeFrame = originalFrame;
-			//originalFrame.copyTo(_frozeFrame);
+			originalFrame.copyTo(_frozeFrame);
 			//Imgproc.resize(_readImg, _frozeFrame, originalFrame.size());
 			//Imgproc.cvtColor(_frozeFrame, _frozeFrame, Imgproc.COLOR_BGR2RGB);
 		} /*else if(!fileWritten) {
@@ -256,11 +264,11 @@ public class TLDView extends JavaCameraView implements CameraBridgeViewBase.CvCa
 		}*/
 		try{
 			// Image is too big and this requires too much CPU for a phone, so scale everything down...			
-			//if (frameSelected && !bbgot) {
-				//Imgproc.resize(_frozeFrame, _workingFrame, WORKING_FRAME_SIZE);
-			//} else {
+			if (frameSelected && !bbgot) {
+				Imgproc.resize(_frozeFrame, _workingFrame, WORKING_FRAME_SIZE);
+			} else {
 				Imgproc.resize(originalFrame, _workingFrame, WORKING_FRAME_SIZE);
-			//}
+			}
 			final Size workingRatio = new Size(originalFrame.width() / WORKING_FRAME_SIZE.width, originalFrame.height() / WORKING_FRAME_SIZE.height);
 			// usefull to see what we're actually working with...
 			/*if (frameSelected && _trackedBox == null) {
@@ -269,9 +277,8 @@ public class TLDView extends JavaCameraView implements CameraBridgeViewBase.CvCa
 				//_workingFrame.copyTo(originalFrame.submat(originalFrame.rows() - _workingFrame.rows(), originalFrame.rows(), 0, _workingFrame.cols()));
 				_finalgray.copyTo(originalFrame.submat(originalFrame.rows() - _finalgray.rows(), originalFrame.rows(), 0, _finalgray.cols()));
 			}*/
-			if (_trackedBox == null && _mainBox != null) {
-				Log.v(VIEW_LOG_TAG, "init!!!");
-				_trackedBox = new Rect(_mainBox.x, _mainBox.y, _mainBox.width, _mainBox.height);
+			if (_trackedBox == null && _mainBox != null && jsonBoxReady) {
+				_trackedBox = new Rect(_mainBox.x,  _mainBox.y, _mainBox.width, _mainBox.height);
 			}
 			
 			if(_trackedBox != null){
@@ -283,7 +290,7 @@ public class TLDView extends JavaCameraView implements CameraBridgeViewBase.CvCa
 					Log.i(Util.TAG, "Final:"+_finalgray.size().height);
 					//Log.i(Util.TAG, "Working Ration: " + workingRatio + " / Tracking Box: " + _trackedBox + " / Scaled down to: " + scaledDownTrackedBox);
 					try {
-						_tld.init(_lastGray, scaledDownTrackedBox);
+						_tld.init(_lastGray, scaledDownTrackedBox); 
 					}catch(Exception eInit){
 				        // start from scratch, you have to select an init box again !
 						_trackedBox = null;
@@ -319,16 +326,16 @@ public class TLDView extends JavaCameraView implements CameraBridgeViewBase.CvCa
 		if(_errMessage !=  null){
 			Core.putText(originalFrame, _errMessage, new Point(0, 300), Core.FONT_HERSHEY_PLAIN, 1.3d, new Scalar(255, 0, 0), 2);
 		}
-		/*if(frameSelected && !bbgot){
+	    if (mEventListener != null) {
+	        mEventListener.onViewUpdated();
+	    }  
+		if(frameSelected && !bbgot){
 			return _frozeFrame;
 		}
 		else {
 			return originalFrame;
-		}*/
-	    if (mEventListener != null) {
-	        mEventListener.onViewUpdated();
-	    }  
-		return originalFrame;
+		}
+		//return originalFrame;
 	}
 
 	private static void copyTo(List<Mat> patterns, Mat dest) {

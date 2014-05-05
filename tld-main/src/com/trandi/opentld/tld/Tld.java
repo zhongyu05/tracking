@@ -285,7 +285,7 @@ public class Tld {
 			Log.e(Util.TAG, "No points could be tracked.");
 			return null;			
 		}
-		if(_tracker.getMedianErrFB() > _params.tracker_stability_FBerrMax){
+		if(_tracker.getMedianErrFB() > _params.tracker_stability_FBerrMax){  
 			Log.w(Util.TAG, "TRACKER too unstable. FB Median error: " + _tracker.getMedianErrFB() + " > " + _params.tracker_stability_FBerrMax);
 			// return null;  // we hope the detection will find the pattern again
 		}
