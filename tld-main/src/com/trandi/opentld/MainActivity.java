@@ -451,6 +451,25 @@ public class MainActivity extends Activity {
 			}
     	}
     };	
+    
+    @Override
+    public void onBackPressed()
+    {
+         // code here to show dialog
+         super.onBackPressed();  // optional depending on your needs
+ 		mHttpclient.get(this, "http://roc.cs.rochester.edu/ccvideo/RegionSpeak/php/setInactive.php?session="+sessionName, new AsyncHttpResponseHandler() {
+		    @Override
+		    public void onSuccess(String response) {
+		    	finish();
+		    }
+		    @Override
+		    public void onFailure(int statusCode, org.apache.http.Header[] headers, byte[] responseBody, java.lang.Throwable error){
+		    	 Log.v("Main", "fail"+statusCode+responseBody+","+error.toString());
+		    	 Toast.makeText(getApplicationContext(), "Check internet connection.", Toast.LENGTH_SHORT).show();
+		    	 //sendingDialog.dismiss();
+		    }
+		});
+    }
 
     protected void onUserLeaveHint () {
     	
